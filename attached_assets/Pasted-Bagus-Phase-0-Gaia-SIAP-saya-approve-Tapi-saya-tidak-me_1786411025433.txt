@@ -1,0 +1,145 @@
+Bagus. **Phase 0 Gaia SIAP saya approve. 🟢**
+
+Tapi saya **tidak menyarankan mengikuti rekomendasi Phase 1 agent mentah-mentah**. Ada dua koreksi penting.
+
+### 1. Jangan langsung Clerk + mobile app
+
+Untuk sekarang:
+
+* ❌ Mobile app — belum perlu.
+* 🟡 Clerk Auth — boleh, tetapi bukan prioritas pertama.
+* 🟢 **Gustafta AI integration — ini prioritas utama.**
+
+Kita perlu membuktikan dulu bahwa **core value Gaia SIAP benar-benar bekerja** sebelum menambah auth dan aplikasi mobile.
+
+### 2. Ada satu hal yang harus kita pastikan dulu
+
+Agent mengatakan:
+
+> `callAiService()` → Phase 1 diganti dengan Gustafta API.
+
+Ini bagus secara arsitektur, **tetapi jangan suruh agent langsung mengarang endpoint Gustafta**.
+
+Kita sudah punya Gustafta yang live. Jadi integrasinya harus berdasarkan **endpoint/API contract yang benar-benar tersedia**, bukan asumsi.
+
+---
+
+# Urutan Phase 1 yang saya rekomendasikan
+
+```text
+PHASE 0
+Foundation
+   🟢 DONE
+       ↓
+PHASE 1A
+Gustafta API integration
+       ↓
+PHASE 1B
+Real SIAP workflow
+       ↓
+PHASE 1C
+QA end-to-end
+       ↓
+PHASE 1D
+Auth
+       ↓
+PHASE 2
+Monetization
+       ↓
+PHASE 3
+Mobile / expansion
+```
+
+### Phase 1A sekarang
+
+**Audit/integrasi Gustafta dulu.**
+
+Kita ingin flow nyata:
+
+```text
+User
+ ↓
+Gaia SIAP
+ ↓
+Intake
+ ↓
+Workflow
+ ↓
+callAiService()
+ ↓
+Gustafta
+ ↓
+AI processing
+ ↓
+Result
+```
+
+Kalau ini berhasil, Gaia SIAP sudah bukan sekadar UI prototype.
+
+---
+
+## Prompt berikutnya untuk Replit
+
+Saya sarankan **jangan langsung coding**. Kirim prompt ini:
+
+```text
+GAIA SIAP — PHASE 1A
+GUSTAFTA INTEGRATION READ-ONLY DISCOVERY
+
+Phase 0 sudah selesai dan jangan dirombak.
+
+Sekarang lakukan READ-ONLY discovery untuk integrasi Gaia SIAP dengan Gustafta.
+
+JANGAN mengubah code, database, environment variable, deployment, atau UI.
+
+Tujuan:
+memastikan API contract Gustafta yang BENAR sebelum implementasi.
+
+Audit:
+
+1. Inspect existing `callAiService()` abstraction.
+2. Inspect `GUSTAFTA_API_URL` dan `GUSTAFTA_API_KEY` configuration.
+3. Identifikasi endpoint Gustafta yang benar-benar tersedia untuk AI processing.
+4. Identifikasi HTTP method, request body, headers, authentication, dan response schema.
+5. Verifikasi apakah endpoint tersebut memang dapat digunakan Gaia SIAP untuk:
+   intake → AI processing → result.
+6. Jangan mengarang endpoint.
+7. Jangan membuat fake integration.
+8. Jika endpoint belum tersedia/credential belum tersedia, katakan secara eksplisit.
+9. Identifikasi apakah existing Gustafta Catalog API berbeda dengan AI processing API.
+10. Jangan mencampurkan Catalog API dengan AI processing API jika keduanya berbeda.
+
+Trace juga:
+
+Gaia SIAP
+→ callAiService()
+→ intended Gustafta endpoint
+→ response
+→ case_results
+
+Di akhir laporkan:
+
+A. API Gustafta yang benar-benar tersedia
+B. Endpoint yang direkomendasikan
+C. Request schema
+D. Response schema
+E. Authentication mechanism
+F. Environment variables yang diperlukan
+G. Gap yang masih ada
+H. Exact implementation plan untuk Phase 1B
+
+IMPORTANT:
+READ-ONLY ONLY.
+Jangan melakukan perubahan apa pun.
+Jangan mengklaim integration READY jika endpoint belum diverifikasi.
+```
+
+### Kenapa kita lakukan ini dulu?
+
+Karena sekarang **Gaia SIAP sudah punya tubuh**, tetapi otaknya masih mock.
+
+Kita perlu memastikan sambungan ke otak Gustafta benar **sebelum** menambahkan login, billing, mobile, dan sebagainya.
+
+Kalau audit ini sudah keluar, kirim ke saya.
+
+**Target kita berikutnya: Gaia SIAP bukan hanya “sudah dibangun”, tetapi bisa melakukan satu kasus nyata dari intake → AI → result.**
