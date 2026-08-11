@@ -1,0 +1,394 @@
+Siap. Karena **Gaia SIAP belum ada**, kita mulai dengan **prompt foundation**, bukan langsung menyuruh Replit membangun fitur besar. Ini menjaga supaya arsitekturnya tidak melebar.
+
+Gunakan prompt berikut di **Replit baru `Gaia-SIAP`**:
+
+```text
+GAIA SIAP — FOUNDATION / DISCOVERY BUILD
+
+Nama aplikasi:
+Gaia SIAP
+
+Status:
+Aplikasi standalone baru.
+Jangan menggunakan workspace Gaia Store sebagai basis.
+Jangan menggunakan Dokumen-Proyek atau DP Store sebagai basis.
+
+Konteks ekosistem:
+
+Gustafta = AI engine / orchestration / catalog ecosystem
+Gaia Store = storefront produk AI
+DP Store = storefront produk dan jasa DokumenProyek
+Gaia SIAP = aplikasi standalone untuk workflow / intake / execution orchestration
+
+GAIA SIAP BUKAN:
+- marketplace
+- storefront
+- chatbot biasa
+- website katalog
+- payment gateway
+- aplikasi admin internal semata
+
+GAIA SIAP ADALAH:
+aplikasi yang membantu pengguna masuk dari kebutuhan/problem → intake → proses/workflow → AI assistance → output/action.
+
+==================================================
+PHASE 0 — DISCOVERY & FOUNDATION
+==================================================
+
+Jika workspace ini masih kosong, bangun foundation minimal yang bersih.
+
+Jika sudah ada kode, terlebih dahulu inspect struktur yang ada dan REUSE apa yang relevan.
+
+JANGAN membuat fitur besar sebelum foundation selesai.
+
+Tujuan Phase 0:
+membuat fondasi aplikasi Gaia SIAP yang siap dikembangkan menjadi produk SaaS.
+
+==================================================
+1. BRAND / POSITIONING
+==================================================
+
+Nama:
+Gaia SIAP
+
+Gunakan positioning yang sederhana dan mudah dipahami pengguna Indonesia.
+
+Jangan menggunakan jargon teknis seperti:
+- Agentic AI
+- MultiClaw
+- orchestration engine
+- LLM pipeline
+
+di UI utama kecuali benar-benar diperlukan.
+
+AI adalah teknologi di belakang layar.
+
+UI harus menjelaskan:
+- apa yang bisa dilakukan pengguna
+- apa yang harus dilakukan pengguna berikutnya
+- hasil apa yang akan mereka dapatkan
+
+==================================================
+2. CORE UX
+==================================================
+
+Buat struktur awal:
+
+Landing / Home
+    ↓
+Pilih kebutuhan / mulai proses
+    ↓
+Intake / Assessment
+    ↓
+Workflow
+    ↓
+AI-assisted processing
+    ↓
+Output / Action
+
+Untuk Phase 0, jangan membuat seluruh workflow bisnis secara mendalam.
+
+Cukup siapkan:
+- Home
+- Start / Mulai
+- Intake placeholder yang benar-benar usable
+- Dashboard sederhana
+- Workflow/status view
+- Output/result placeholder
+
+==================================================
+3. AUTHENTICATION
+==================================================
+
+Siapkan arsitektur authentication yang bersih.
+
+Jika auth belum diperlukan untuk prototype:
+buat foundation yang memungkinkan auth ditambahkan kemudian.
+
+Jangan memaksa login sebelum pengguna memahami produk.
+
+Public landing harus tetap bisa dibuka tanpa login.
+
+==================================================
+4. DATA MODEL
+==================================================
+
+Siapkan model data minimal yang scalable.
+
+Minimal konsep:
+
+User
+Workspace / Organization
+SIAP Session / Case
+Intake
+Workflow
+Workflow Step
+Output
+
+Jangan membuat schema yang terlalu kompleks.
+
+Gunakan ID yang stabil.
+
+Jangan hardcode data bisnis ke komponen UI.
+
+==================================================
+5. WORKFLOW ENGINE FOUNDATION
+==================================================
+
+Siapkan konsep workflow yang dapat berkembang.
+
+Contoh:
+
+Case
+  status:
+    draft
+    intake
+    processing
+    review
+    completed
+
+WorkflowStep
+  status:
+    pending
+    active
+    completed
+    blocked
+
+Jangan membangun automation kompleks terlebih dahulu.
+
+Yang penting:
+state dan transition dapat dikembangkan kemudian.
+
+==================================================
+6. AI INTEGRATION FOUNDATION
+==================================================
+
+Siapkan abstraction layer untuk AI.
+
+JANGAN hardcode seluruh aplikasi ke satu model AI.
+
+Buat service/interface yang nantinya memungkinkan:
+
+SIAP
+  ↓
+AI Service
+  ↓
+Gustafta / model provider
+
+Untuk Phase 0:
+boleh menggunakan mock response.
+
+Tetapi pisahkan mock AI dari business logic.
+
+==================================================
+7. GUSTAFTA INTEGRATION
+==================================================
+
+Gaia SIAP nantinya akan berada dalam ecosystem Gustafta.
+
+Jangan mengarang endpoint.
+
+Jangan membuat fake API URL.
+
+Jika environment variable/API credential belum tersedia:
+buat configuration interface/placeholder yang jelas.
+
+Jangan melakukan destructive changes terhadap Gustafta.
+
+Untuk Phase 0 cukup siapkan:
+
+Gustafta API client abstraction
+configuration
+error handling
+timeout handling
+logging yang aman
+
+Jangan mengimplementasikan provisioning/entitlement/SSO dulu.
+
+==================================================
+8. UI / DESIGN
+==================================================
+
+Design harus:
+
+- clean
+- modern
+- professional
+- cocok untuk B2B Indonesia
+- responsive
+- mudah dipahami
+- tidak terasa seperti dashboard developer
+
+Prioritaskan usability daripada dekorasi.
+
+Gunakan terminology Indonesia yang natural.
+
+Hindari terlalu banyak card, gradient, animasi, dan jargon AI.
+
+==================================================
+9. SECURITY
+==================================================
+
+Jangan expose secret/API key di client.
+
+Gunakan environment variables.
+
+Tambahkan basic validation pada input.
+
+Jangan menyimpan credential di source code.
+
+==================================================
+10. ROUTING
+==================================================
+
+Siapkan routing minimal:
+
+/
+ /mulai
+ /dashboard
+ /case/:id
+ /case/:id/intake
+ /case/:id/workflow
+ /case/:id/result
+
+Jika route belum mempunyai backend penuh, gunakan state yang jelas sebagai placeholder.
+
+Jangan membuat puluhan route yang belum diperlukan.
+
+==================================================
+11. OUT OF SCOPE — JANGAN DIBANGUN SEKARANG
+==================================================
+
+Jangan implementasikan:
+
+- payment gateway
+- subscription billing
+- marketplace
+- product catalog
+- DP Store
+- Gaia Store
+- SSO
+- complex multi-tenant billing
+- advanced agent system
+- multi-agent orchestration
+- WhatsApp automation
+- email automation
+- complex admin panel
+- analytics kompleks
+- inventory
+- affiliate/reseller
+- full production AI workflow
+
+Semua itu dapat menjadi fase berikutnya.
+
+==================================================
+12. IMPORTANT ARCHITECTURE RULE
+==================================================
+
+Gaia SIAP harus standalone.
+
+Jangan memindahkan Gaia SIAP ke:
+- Gaia Store
+- Dokumen-Proyek
+- DP Store
+
+Gaia Store hanya dapat menjadi CHANNEL untuk menjual Gaia SIAP.
+
+Gaia SIAP sendiri tetap aplikasi/product.
+
+==================================================
+13. DEVELOPMENT METHOD
+==================================================
+
+Kerjakan secara bertahap.
+
+STEP 1:
+Inspect workspace.
+
+STEP 2:
+Tentukan stack yang digunakan / gunakan stack Replit yang stabil.
+
+STEP 3:
+Bangun foundation.
+
+STEP 4:
+Implementasikan routing minimal.
+
+STEP 5:
+Implementasikan basic data model.
+
+STEP 6:
+Implementasikan basic UI flow.
+
+STEP 7:
+Implementasikan AI service abstraction.
+
+STEP 8:
+Build dan test.
+
+Jangan melakukan perubahan di luar scope.
+
+==================================================
+14. QA REQUIREMENT
+==================================================
+
+Setelah implementasi:
+
+Test minimal:
+
+Landing
+→ Mulai
+→ Intake
+→ Case dibuat
+→ Dashboard
+→ Workflow
+→ Result
+
+Pastikan:
+
+- tidak ada compile error
+- tidak ada broken route
+- responsive
+- state tidak hilang saat berpindah halaman
+- API errors ditangani
+- tidak ada secret di client
+- build berhasil
+
+==================================================
+15. OUTPUT REPORT
+==================================================
+
+Setelah selesai, laporkan:
+
+A. Stack yang digunakan
+B. Struktur folder
+C. Routes
+D. Database/schema
+E. AI abstraction
+F. Gustafta integration foundation
+G. Files yang dibuat/diubah
+H. QA result
+I. Hal yang masih placeholder
+J. Rekomendasi Phase 1
+
+IMPORTANT:
+
+Jangan mengklaim production-ready jika masih placeholder.
+
+Jangan mengintegrasikan API yang belum diverifikasi.
+
+Jangan membuat payment atau fitur besar.
+
+Prioritas utama:
+FOUNDATION → CLEAN ARCHITECTURE → USABLE CORE FLOW → QA
+```
+
+### Setelah Replit selesai
+
+**Jangan langsung lanjut Phase 1.** Kirimkan hasil report dari Replit ke saya.
+
+Saya akan cek apakah foundation Gaia SIAP sudah benar sebelum kita mulai memasukkan **workflow SIAP yang sebenarnya**.
+
+Dengan begitu posisi kita tetap bersih:
+
+**Gustafta 🟢 → Gaia Store 🟢 → DP Store 🟢 → Gaia SIAP 🔵 sedang dibangun.**

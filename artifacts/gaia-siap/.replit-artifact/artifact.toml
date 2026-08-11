@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Gaia SIAP"
+description = "Gaia SIAP adalah aplikasi standalone untuk workflow/intake/execution orchestration yang membantu pengguna dari kebutuhan/problem → intake → proses/workflow → AI assistance → output/action. Dirancang untuk B2B Indonesia dengan UI yang clean, modern, dan mudah dipahami."
+version = "1.0.0"
+id = "artifacts/gaia-siap"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22118
+
+[services.development]
+run = "pnpm --filter @workspace/gaia-siap run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/gaia-siap", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/gaia-siap/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22118"
+BASE_PATH = "/"

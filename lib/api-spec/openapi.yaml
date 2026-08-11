@@ -3,13 +3,26 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Gaia SIAP API - Workflow/Intake/Execution Orchestration
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: cases
+    description: SIAP Cases / Sessions
+  - name: intake
+    description: Case Intake
+  - name: workflow
+    description: Workflow Steps
+  - name: results
+    description: Case Results
+  - name: ai
+    description: AI Assistance
+  - name: dashboard
+    description: Dashboard & Summary
+
 paths:
   /healthz:
     get:
@@ -24,6 +37,318 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /cases:
+    get:
+      operationId: listCases
+      tags: [cases]
+      summary: List all cases
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, intake, processing, review, completed]
+        - name: limit
+          in: query
+          schema:
+            type: number
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: number
+            default: 0
+      responses:
+        "200":
+          description: List of cases
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseList"
+    post:
+      operationId: createCase
+      tags: [cases]
+      summary: Create a new case
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaseInput"
+      responses:
+        "201":
+          description: Created case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Case"
+
+  /cases/{id}:
+    get:
+      operationId: getCase
+      tags: [cases]
+      summary: Get a case by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Case details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Case"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateCase
+      tags: [cases]
+      summary: Update a case
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaseUpdate"
+      responses:
+        "200":
+          description: Updated case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Case"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteCase
+      tags: [cases]
+      summary: Delete a case
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /cases/{id}/intake:
+    get:
+      operationId: getCaseIntake
+      tags: [intake]
+      summary: Get intake data for a case
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Intake data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Intake"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: submitCaseIntake
+      tags: [intake]
+      summary: Submit or update intake for a case
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IntakeInput"
+      responses:
+        "200":
+          description: Intake submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Intake"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /cases/{id}/workflow:
+    get:
+      operationId: getCaseWorkflow
+      tags: [workflow]
+      summary: Get workflow steps for a case
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Workflow steps
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowStepList"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /cases/{id}/workflow/advance:
+    post:
+      operationId: advanceCaseWorkflow
+      tags: [workflow]
+      summary: Advance the workflow to the next step
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkflowAdvanceInput"
+      responses:
+        "200":
+          description: Workflow advanced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowStepList"
+        "400":
+          description: Cannot advance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /cases/{id}/result:
+    get:
+      operationId: getCaseResult
+      tags: [results]
+      summary: Get the result/output for a case
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Case result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseResult"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /ai/assist:
+    post:
+      operationId: aiAssist
+      tags: [ai]
+      summary: Request AI assistance for a case
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiAssistInput"
+      responses:
+        "200":
+          description: AI assistance response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssistResponse"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary stats
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/recent:
+    get:
+      operationId: getRecentCases
+      tags: [dashboard]
+      summary: Get recently updated cases
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: number
+            default: 5
+      responses:
+        "200":
+          description: Recent cases
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseList"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +359,229 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    CaseStatus:
+      type: string
+      enum: [draft, intake, processing, review, completed]
+
+    Case:
+      type: object
+      required: [id, title, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        category:
+          type: ["string", "null"]
+        status:
+          $ref: "#/components/schemas/CaseStatus"
+        priority:
+          type: ["string", "null"]
+          enum: [low, normal, high, null]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CaseList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Case"
+        total:
+          type: number
+
+    CaseInput:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        category:
+          type: string
+        priority:
+          type: string
+          enum: [low, normal, high]
+
+    CaseUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        category:
+          type: string
+        priority:
+          type: string
+          enum: [low, normal, high]
+        status:
+          $ref: "#/components/schemas/CaseStatus"
+
+    IntakeField:
+      type: object
+      required: [key, label, value]
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        value:
+          type: string
+
+    Intake:
+      type: object
+      required: [id, caseId, fields, submittedAt]
+      properties:
+        id:
+          type: string
+        caseId:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntakeField"
+        notes:
+          type: ["string", "null"]
+        submittedAt:
+          type: string
+          format: date-time
+
+    IntakeInput:
+      type: object
+      required: [fields]
+      properties:
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntakeField"
+        notes:
+          type: string
+
+    WorkflowStepStatus:
+      type: string
+      enum: [pending, active, completed, blocked]
+
+    WorkflowStep:
+      type: object
+      required: [id, caseId, stepNumber, title, status]
+      properties:
+        id:
+          type: string
+        caseId:
+          type: string
+        stepNumber:
+          type: number
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        status:
+          $ref: "#/components/schemas/WorkflowStepStatus"
+        completedAt:
+          type: ["string", "null"]
+          format: date-time
+
+    WorkflowStepList:
+      type: object
+      required: [steps, currentStep]
+      properties:
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowStep"
+        currentStep:
+          type: ["number", "null"]
+
+    WorkflowAdvanceInput:
+      type: object
+      properties:
+        notes:
+          type: string
+
+    CaseResult:
+      type: object
+      required: [id, caseId, summary, createdAt]
+      properties:
+        id:
+          type: string
+        caseId:
+          type: string
+        summary:
+          type: string
+        details:
+          type: ["string", "null"]
+        recommendations:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    AiAssistInput:
+      type: object
+      required: [caseId, prompt]
+      properties:
+        caseId:
+          type: string
+        prompt:
+          type: string
+        context:
+          type: string
+
+    AssistResponse:
+      type: object
+      required: [response, caseId]
+      properties:
+        caseId:
+          type: string
+        response:
+          type: string
+        suggestions:
+          type: array
+          items:
+            type: string
+
+    DashboardSummary:
+      type: object
+      required: [totalCases, byStatus, recentActivity]
+      properties:
+        totalCases:
+          type: number
+        byStatus:
+          type: object
+          properties:
+            draft:
+              type: number
+            intake:
+              type: number
+            processing:
+              type: number
+            review:
+              type: number
+            completed:
+              type: number
+          required: [draft, intake, processing, review, completed]
+        recentActivity:
+          type: number
+          description: Cases updated in the last 7 days
