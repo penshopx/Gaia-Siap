@@ -5,39 +5,57 @@ import { AiAssistBody, AiAssistResponse } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
-// AI abstraction layer — mock for Phase 0.
-// In Phase 1, replace the body of `callAiService` with a real Gustafta/model-provider call.
+const GUSTAFTA_API_URL = "https://gustafta.my.id/api/v1/ai/assist";
+const GUSTAFTA_TIMEOUT_MS = 30_000;
+
+// AI abstraction layer — Phase 1B: real Gustafta integration.
+// Caller interface and response shape are unchanged from Phase 0.
 async function callAiService(params: {
   caseId: string;
   prompt: string;
   context?: string;
   caseTitle?: string;
 }): Promise<{ response: string; suggestions: string[] }> {
-  // GUSTAFTA_API_URL and GUSTAFTA_API_KEY would be used here in Phase 1
-  // For now, return a structured mock response
+  const apiKey = process.env.GUSTAFTA_API_KEY;
+  if (!apiKey) {
+    throw new Error("GUSTAFTA_API_KEY secret is not configured");
+  }
 
-  const responses = [
-    {
-      response: `Terima kasih atas pertanyaan mengenai "${params.caseTitle ?? 'kasus ini'}". Berdasarkan konteks yang diberikan, saya dapat membantu menganalisis situasi dan memberikan panduan yang relevan. Mohon pastikan semua informasi yang diperlukan sudah dilengkapi dalam formulir masukan.`,
-      suggestions: [
-        "Lengkapi semua field masukan untuk analisis yang lebih akurat",
-        "Tambahkan dokumen pendukung jika tersedia",
-        "Pertimbangkan untuk menentukan prioritas kasus berdasarkan urgensi",
-      ],
-    },
-    {
-      response: `Analisis awal menunjukkan bahwa "${params.prompt}" merupakan topik yang perlu ditangani dengan pendekatan sistematis. Proses SIAP akan memandu Anda melalui setiap tahap dengan tepat.`,
-      suggestions: [
-        "Pastikan informasi yang dimasukkan lengkap dan akurat",
-        "Jadwalkan review rutin untuk memantau perkembangan",
-        "Koordinasikan dengan pemangku kepentingan terkait",
-      ],
-    },
-  ];
+  const body = JSON.stringify({ prompt: params.prompt });
 
-  // Simple rotation based on prompt length for variety
-  const selected = responses[params.prompt.length % responses.length];
-  return selected;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), GUSTAFTA_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(GUSTAFTA_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body,
+      signal: controller.signal,
+    });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(`Gustafta API timed out after ${GUSTAFTA_TIMEOUT_MS / 1000}s`);
+    }
+    throw new Error(`Gustafta API request failed: ${err instanceof Error ? err.message : String(err)}`);
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "(no body)");
+    throw new Error(`Gustafta API returned HTTP ${res.status}: ${text}`);
+  }
+
+  const data = (await res.json()) as { response: string; suggestions: string[] };
+  return {
+    response: data.response ?? "",
+    suggestions: Array.isArray(data.suggestions) ? data.suggestions : [],
+  };
 }
 
 router.post("/ai/assist", async (req, res): Promise<void> => {
