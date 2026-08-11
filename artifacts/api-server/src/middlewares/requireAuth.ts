@@ -1,6 +1,15 @@
 import { getAuth } from "@clerk/express";
 import type { Request, Response, NextFunction } from "express";
 
+// Extend Express Request to carry the authenticated userId
+declare global {
+  namespace Express {
+    interface Request {
+      userId?: string;
+    }
+  }
+}
+
 /**
  * Middleware that requires a valid Clerk session.
  * Returns 401 { error: "Unauthorized" } if no authenticated session is found.
@@ -10,13 +19,12 @@ import type { Request, Response, NextFunction } from "express";
  */
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   const auth = getAuth(req);
-  // Clerk v5: sessionClaims.sub holds the user ID; userId is the direct shorthand.
-  const userId = auth?.userId;
+  // Clerk v5: auth.userId is the direct shorthand for the authenticated user.
+  const userId = auth?.userId ?? null;
   if (!userId) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
-  // Attach for downstream use without patching global Express types
-  (req as Request & { userId: string }).userId = userId;
+  req.userId = userId;
   next();
 }

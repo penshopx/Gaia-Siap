@@ -12,9 +12,7 @@ export default function CaseDetail({ params }: { params: { id: string } }) {
   const [location, setLocation] = useLocation();
   const id = params.id;
   
-  const { data: caseData, isLoading, error } = useGetCase(id, {
-    query: { enabled: !!id }
-  });
+  const { data: caseData, isLoading, error } = useGetCase(id);
 
   const getStatusBadge = (status: string) => {
     switch (status) {

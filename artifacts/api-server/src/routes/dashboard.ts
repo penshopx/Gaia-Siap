@@ -1,27 +1,29 @@
 import { Router, type IRouter } from "express";
-import { eq, gte, count } from "drizzle-orm";
+import { and, eq, gte, count, desc } from "drizzle-orm";
 import { db, casesTable } from "@workspace/db";
 import {
   GetDashboardSummaryResponse,
   GetRecentCasesQueryParams,
   GetRecentCasesResponse,
-  ListCasesResponse,
 } from "@workspace/api-zod";
-import { desc } from "drizzle-orm";
 
 const router: IRouter = Router();
 
 router.get("/dashboard/summary", async (req, res): Promise<void> => {
+  const userId = req.userId!;
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const userFilter = eq(casesTable.userId, userId);
 
   const [allCounts, recentCount] = await Promise.all([
     db.select({ status: casesTable.status, cnt: count() })
       .from(casesTable)
+      .where(userFilter)
       .groupBy(casesTable.status),
     db.select({ cnt: count() })
       .from(casesTable)
-      .where(gte(casesTable.updatedAt, sevenDaysAgo)),
+      .where(and(userFilter, gte(casesTable.updatedAt, sevenDaysAgo))),
   ]);
 
   const byStatus = {
@@ -57,14 +59,18 @@ router.get("/dashboard/recent", async (req, res): Promise<void> => {
     return;
   }
 
+  const userId = req.userId!;
   const limit = query.data.limit ?? 5;
-  const items = await db
-    .select()
-    .from(casesTable)
-    .orderBy(desc(casesTable.updatedAt))
-    .limit(limit);
+  const userFilter = eq(casesTable.userId, userId);
 
-  const [{ total }] = await db.select({ total: count() }).from(casesTable);
+  const [items, [{ total }]] = await Promise.all([
+    db.select()
+      .from(casesTable)
+      .where(userFilter)
+      .orderBy(desc(casesTable.updatedAt))
+      .limit(limit),
+    db.select({ total: count() }).from(casesTable).where(userFilter),
+  ]);
 
   res.json(GetRecentCasesResponse.parse({ items, total }));
 });

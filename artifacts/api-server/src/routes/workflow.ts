@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, asc } from "drizzle-orm";
+import { and, eq, asc } from "drizzle-orm";
 import { db, casesTable, workflowStepsTable } from "@workspace/db";
 import {
   GetCaseWorkflowParams,
@@ -18,10 +18,12 @@ router.get("/cases/:id/workflow", async (req, res): Promise<void> => {
     return;
   }
 
+  const userId = req.userId!;
+
   const [caseItem] = await db
     .select()
     .from(casesTable)
-    .where(eq(casesTable.id, params.data.id));
+    .where(and(eq(casesTable.id, params.data.id), eq(casesTable.userId, userId)));
 
   if (!caseItem) {
     res.status(404).json({ error: "Kasus tidak ditemukan" });
@@ -48,10 +50,12 @@ router.post("/cases/:id/workflow/advance", async (req, res): Promise<void> => {
 
   AdvanceCaseWorkflowBody.safeParse(req.body);
 
+  const userId = req.userId!;
+
   const [caseItem] = await db
     .select()
     .from(casesTable)
-    .where(eq(casesTable.id, params.data.id));
+    .where(and(eq(casesTable.id, params.data.id), eq(casesTable.userId, userId)));
 
   if (!caseItem) {
     res.status(404).json({ error: "Kasus tidak ditemukan" });

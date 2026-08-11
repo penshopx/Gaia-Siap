@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, casesTable, intakesTable } from "@workspace/db";
 import {
   GetCaseIntakeParams,
@@ -16,6 +16,19 @@ router.get("/cases/:id/intake", async (req, res): Promise<void> => {
   const params = GetCaseIntakeParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const userId = req.userId!;
+
+  // Verify case ownership before accessing intake
+  const [caseItem] = await db
+    .select()
+    .from(casesTable)
+    .where(and(eq(casesTable.id, params.data.id), eq(casesTable.userId, userId)));
+
+  if (!caseItem) {
+    res.status(404).json({ error: "Kasus tidak ditemukan" });
     return;
   }
 
@@ -46,11 +59,13 @@ router.post("/cases/:id/intake", async (req, res): Promise<void> => {
     return;
   }
 
-  // Check case exists
+  const userId = req.userId!;
+
+  // Verify case ownership
   const [caseItem] = await db
     .select()
     .from(casesTable)
-    .where(eq(casesTable.id, params.data.id));
+    .where(and(eq(casesTable.id, params.data.id), eq(casesTable.userId, userId)));
 
   if (!caseItem) {
     res.status(404).json({ error: "Kasus tidak ditemukan" });

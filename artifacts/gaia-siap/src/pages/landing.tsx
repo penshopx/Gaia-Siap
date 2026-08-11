@@ -18,7 +18,7 @@ export default function Landing() {
             <Link href="/sign-in">Masuk</Link>
           </Button>
           <Button asChild className="rounded-full shadow-sm px-6">
-            <Link href="/mulai">Mulai Sekarang</Link>
+            <Link href="/sign-up">Mulai Sekarang</Link>
           </Button>
         </div>
       </header>
@@ -39,7 +39,7 @@ export default function Landing() {
             </p>
             <div className="pt-4 flex items-center gap-4">
               <Button asChild size="lg" className="rounded-full shadow-md text-base px-8 h-14">
-                <Link href="/mulai">
+                <Link href="/sign-up">
                   Mulai Kasus Baru <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>

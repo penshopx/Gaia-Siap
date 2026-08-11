@@ -13,9 +13,7 @@ export default function CaseWorkflow({ caseId }: { caseId: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const { data: workflow, isLoading } = useGetCaseWorkflow(caseId, {
-    query: { enabled: !!caseId }
-  });
+  const { data: workflow, isLoading } = useGetCaseWorkflow(caseId);
   
   const advanceWorkflow = useAdvanceCaseWorkflow();
   const updateCase = useUpdateCase();

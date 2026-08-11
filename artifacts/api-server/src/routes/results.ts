@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, casesTable, caseResultsTable, intakesTable } from "@workspace/db";
 import {
   GetCaseResultParams,
@@ -16,10 +16,13 @@ router.get("/cases/:id/result", async (req, res): Promise<void> => {
     return;
   }
 
+  const userId = req.userId!;
+
+  // Verify case ownership
   const [caseItem] = await db
     .select()
     .from(casesTable)
-    .where(eq(casesTable.id, params.data.id));
+    .where(and(eq(casesTable.id, params.data.id), eq(casesTable.userId, userId)));
 
   if (!caseItem) {
     res.status(404).json({ error: "Kasus tidak ditemukan" });

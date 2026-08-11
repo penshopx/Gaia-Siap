@@ -15,9 +15,7 @@ export default function CaseIntake({ caseId }: { caseId: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const { data: intake, isLoading } = useGetCaseIntake(caseId, {
-    query: { enabled: !!caseId }
-  });
+  const { data: intake, isLoading } = useGetCaseIntake(caseId);
   
   const submitIntake = useSubmitCaseIntake();
   const updateCase = useUpdateCase();

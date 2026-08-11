@@ -1,12 +1,11 @@
-import { useEffect, useRef, type ReactNode } from 'react';
-import { ClerkProvider, SignIn, SignUp, Show, useClerk, useQueryClient as _useQueryClient } from '@clerk/react';
+import { type ReactNode, useEffect, useRef } from 'react';
+import { ClerkProvider, SignIn, SignUp, Show, useClerk } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import NotFound from '@/pages/not-found';
 import {
   Route,
   Switch,
@@ -54,50 +53,52 @@ const clerkAppearance = {
     logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
   },
   variables: {
-    colorPrimary: '#1a2e5c',        // deep navy
-    colorForeground: '#0d1726',     // near-black navy
-    colorMutedForeground: '#6b7a90',
-    colorDanger: '#ef4444',
-    colorBackground: '#faf9f7',     // off-white warm
+    colorPrimary: '#1a2744',
+    colorForeground: '#0d1730',
+    colorMutedForeground: '#697a90',
+    colorDanger: '#f23f3f',
+    colorBackground: '#faf9f7',
     colorInput: '#e2e8f0',
-    colorInputForeground: '#0d1726',
-    colorNeutral: '#e2e8f0',
+    colorInputForeground: '#0d1730',
+    colorNeutral: '#dfe8f2',
     fontFamily: "'Plus Jakarta Sans', sans-serif",
     borderRadius: '0.5rem',
   },
   elements: {
     rootBox: 'w-full flex justify-center',
-    cardBox: 'bg-white rounded-2xl w-[440px] max-w-full overflow-hidden shadow-lg',
+    cardBox: 'shadow-lg rounded-2xl w-[440px] max-w-full overflow-hidden bg-white',
     card: '!shadow-none !border-0 !bg-transparent !rounded-none',
     footer: '!shadow-none !border-0 !bg-transparent !rounded-none',
     headerTitle: 'text-slate-900 font-bold',
     headerSubtitle: 'text-slate-500',
     socialButtonsBlockButtonText: 'text-slate-700 font-medium',
     formFieldLabel: 'text-slate-700 font-medium',
-    footerActionLink: 'text-[#1a2e5c] font-semibold hover:underline',
+    footerActionLink: 'text-primary font-semibold hover:text-primary/80',
     footerActionText: 'text-slate-500',
     dividerText: 'text-slate-400',
-    identityPreviewEditButton: 'text-[#1a2e5c]',
+    identityPreviewEditButton: 'text-primary',
     formFieldSuccessText: 'text-emerald-600',
     alertText: 'text-slate-700',
-    logoBox: 'mb-2',
-    logoImage: 'w-10 h-10',
-    socialButtonsBlockButton: 'border border-slate-200 bg-white hover:bg-slate-50 text-slate-700',
-    formButtonPrimary: 'bg-[#1a2e5c] hover:bg-[#243a70] text-white font-semibold',
-    formFieldInput: 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400',
+    logoBox: 'mx-auto',
+    logoImage: 'h-10 w-10',
+    socialButtonsBlockButton: 'border border-slate-200 hover:bg-slate-50 rounded-lg',
+    formButtonPrimary: 'bg-primary hover:bg-primary/90 text-white rounded-lg font-semibold',
+    formFieldInput: 'border border-slate-200 rounded-lg bg-white text-slate-900',
     footerAction: 'bg-slate-50',
     dividerLine: 'bg-slate-200',
-    alert: 'bg-red-50 border border-red-200',
-    otpCodeFieldInput: 'border-slate-200 text-slate-900',
+    alert: 'border border-red-100 bg-red-50 rounded-lg',
+    otpCodeFieldInput: 'border border-slate-200 rounded-lg',
     formFieldRow: '',
     main: '',
   },
 };
 
+const queryClient = new QueryClient();
+
 // ── Auth pages ────────────────────────────────────────────────────────────────
 function SignInPage() {
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-slate-50 px-4">
       <SignIn
         routing="path"
         path={`${basePath}/sign-in`}
@@ -109,7 +110,7 @@ function SignInPage() {
 
 function SignUpPage() {
   return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-slate-50 px-4">
       <SignUp
         routing="path"
         path={`${basePath}/sign-up`}
@@ -119,20 +120,9 @@ function SignUpPage() {
   );
 }
 
-// ── Protected route wrapper ───────────────────────────────────────────────────
-function Protected({ children }: { children: ReactNode }) {
-  return (
-    <>
-      <Show when="signed-in">{children}</Show>
-      <Show when="signed-out">
-        <Redirect to="/sign-in" />
-      </Show>
-    </>
-  );
-}
-
-// ── Home — public landing, redirect signed-in users to dashboard ──────────────
-function HomeRedirect() {
+// ── Route guards ──────────────────────────────────────────────────────────────
+// Redirects authenticated users to dashboard; shows Landing to guests
+function HomeRoute() {
   return (
     <>
       <Show when="signed-in">
@@ -145,62 +135,41 @@ function HomeRedirect() {
   );
 }
 
-// ── Cache invalidation on user change ────────────────────────────────────────
+// Requires auth — guests are sent to sign-in
+function ProtectedLayout({ children }: { children: ReactNode }) {
+  return (
+    <>
+      <Show when="signed-in">
+        <AppLayout>{children}</AppLayout>
+      </Show>
+      <Show when="signed-out">
+        <Redirect to="/sign-in" />
+      </Show>
+    </>
+  );
+}
+
+// Invalidates React Query cache when the signed-in user changes
 function ClerkQueryClientCacheInvalidator() {
   const { addListener } = useClerk();
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
   const prevUserIdRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     const unsubscribe = addListener(({ user }) => {
       const userId = user?.id ?? null;
-      if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== userId) {
-        queryClient.clear();
+      if (
+        prevUserIdRef.current !== undefined &&
+        prevUserIdRef.current !== userId
+      ) {
+        qc.clear();
       }
       prevUserIdRef.current = userId;
     });
     return unsubscribe;
-  }, [addListener, queryClient]);
+  }, [addListener, qc]);
 
   return null;
-}
-
-// ── Router ────────────────────────────────────────────────────────────────────
-const queryClient = new QueryClient();
-
-function Router() {
-  return (
-    <RoutedErrorBoundary>
-      <Switch>
-        {/* Public */}
-        <Route path="/" component={HomeRedirect} />
-        <Route path="/mulai" component={Start} />
-
-        {/* Auth pages — MUST be exact paths with /*? wildcard for Clerk OAuth callbacks */}
-        <Route path="/sign-in/*?" component={SignInPage} />
-        <Route path="/sign-up/*?" component={SignUpPage} />
-
-        {/* Protected app pages */}
-        <Route path="/dashboard">
-          <Protected>
-            <AppLayout><Dashboard /></AppLayout>
-          </Protected>
-        </Route>
-
-        <Route path="/case/:id/*?">
-          {(params) => (
-            <Protected>
-              <AppLayout>
-                <CaseDetail params={params} />
-              </AppLayout>
-            </Protected>
-          )}
-        </Route>
-
-        <Route component={NotFound} />
-      </Switch>
-    </RoutedErrorBoundary>
-  );
 }
 
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
@@ -208,7 +177,50 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
   return <ErrorBoundary resetKey={location}>{children}</ErrorBoundary>;
 }
 
-// ── ClerkProvider with Wouter integration ─────────────────────────────────────
+// ── Router ────────────────────────────────────────────────────────────────────
+function Router() {
+  return (
+    <RoutedErrorBoundary>
+      <Switch>
+        <Route path="/" component={HomeRoute} />
+
+        {/* Auth pages — MUST be exactly /*? to catch OAuth sub-paths */}
+        <Route path="/sign-in/*?" component={SignInPage} />
+        <Route path="/sign-up/*?" component={SignUpPage} />
+
+        {/* Protected app routes */}
+        <Route path="/mulai">
+          <ProtectedLayout>
+            <Start />
+          </ProtectedLayout>
+        </Route>
+
+        <Route path="/dashboard">
+          <ProtectedLayout>
+            <Dashboard />
+          </ProtectedLayout>
+        </Route>
+
+        <Route path="/case/:id/*?">
+          {(params) => (
+            <ProtectedLayout>
+              <CaseDetail params={params} />
+            </ProtectedLayout>
+          )}
+        </Route>
+
+        <Route>
+          <div className="flex h-screen items-center justify-center flex-col gap-4">
+            <h1 className="text-4xl font-bold">404</h1>
+            <p>Halaman tidak ditemukan.</p>
+          </div>
+        </Route>
+      </Switch>
+    </RoutedErrorBoundary>
+  );
+}
+
+// ── Root App ──────────────────────────────────────────────────────────────────
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
 
@@ -222,14 +234,14 @@ function ClerkProviderWithRoutes() {
       localization={{
         signIn: {
           start: {
-            title: 'Masuk ke Gaia SIAP',
-            subtitle: 'Masuk untuk mengelola kasus dan workflow bisnis Anda',
+            title: 'Selamat datang kembali',
+            subtitle: 'Masuk untuk melanjutkan ke Gaia SIAP',
           },
         },
         signUp: {
           start: {
-            title: 'Buat Akun Gaia SIAP',
-            subtitle: 'Mulai kelola bisnis Anda lebih sistematis',
+            title: 'Buat akun baru',
+            subtitle: 'Mulai kelola kasus Anda secara terstruktur',
           },
         },
       }}
@@ -247,7 +259,6 @@ function ClerkProviderWithRoutes() {
   );
 }
 
-// ── Root App ──────────────────────────────────────────────────────────────────
 function App() {
   return (
     <WouterRouter base={basePath}>

@@ -5,9 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle2, Download, AlertCircle, FileText, CheckSquare } from "lucide-react";
 
 export default function CaseResult({ caseId }: { caseId: string }) {
-  const { data: result, isLoading } = useGetCaseResult(caseId, {
-    query: { enabled: !!caseId }
-  });
+  const { data: result, isLoading } = useGetCaseResult(caseId);
 
   if (isLoading) {
     return (

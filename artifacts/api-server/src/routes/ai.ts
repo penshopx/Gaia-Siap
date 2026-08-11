@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, casesTable, intakesTable } from "@workspace/db";
 import { AiAssistBody, AiAssistResponse } from "@workspace/api-zod";
 
@@ -143,18 +143,26 @@ router.post("/ai/assist", async (req, res): Promise<void> => {
 
   const { caseId, prompt, context } = parsed.data;
 
+  const userId = req.userId!;
+
   const [caseItem] = await db
     .select()
     .from(casesTable)
-    .where(eq(casesTable.id, caseId));
+    .where(and(eq(casesTable.id, caseId), eq(casesTable.userId, userId)));
 
-  const [intake] = caseItem
-    ? await db.select().from(intakesTable).where(eq(intakesTable.caseId, caseId))
-    : [undefined];
+  if (!caseItem) {
+    res.status(404).json({ error: "Kasus tidak ditemukan" });
+    return;
+  }
+
+  const [intake] = await db
+    .select()
+    .from(intakesTable)
+    .where(eq(intakesTable.caseId, caseId));
 
   const aiContext = [
     context,
-    caseItem ? `Kasus: ${caseItem.title}` : null,
+    `Kasus: ${caseItem.title}`,
     intake ? `Jumlah masukan: ${(intake.fields as unknown[]).length}` : null,
   ]
     .filter(Boolean)
@@ -164,7 +172,7 @@ router.post("/ai/assist", async (req, res): Promise<void> => {
     caseId,
     prompt,
     context: aiContext,
-    caseTitle: caseItem?.title,
+    caseTitle: caseItem.title,
   });
 
   res.json(

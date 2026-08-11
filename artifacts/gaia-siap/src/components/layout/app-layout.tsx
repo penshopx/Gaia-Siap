@@ -1,25 +1,39 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, FileText, Plus, Bell, Briefcase, Menu, LogOut } from "lucide-react";
+import { LayoutDashboard, Plus, Bell, Briefcase, Menu, LogOut } from "lucide-react";
 import { useState } from "react";
+import { useClerk, useUser } from "@clerk/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { signOut } = useClerk();
+  const { user } = useUser();
 
   const navigation = [
     { name: "Dasbor", href: "/dashboard", icon: LayoutDashboard },
     { name: "Buat Kasus Baru", href: "/mulai", icon: Plus },
   ];
 
+  const displayName = user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? "Pengguna";
+  const displayEmail = user?.primaryEmailAddress?.emailAddress ?? "";
+  const initials = displayName
+    .split(" ")
+    .slice(0, 2)
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
+
   return (
     <div className="flex min-h-[100dvh] w-full bg-slate-50">
       {/* Mobile sidebar backdrop */}
       {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-black/50 md:hidden" 
-          onClick={() => setIsSidebarOpen(false)} 
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
@@ -36,7 +50,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
           <span className="text-lg font-bold text-slate-900 tracking-tight">Gaia SIAP</span>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto py-6 px-4">
           <div className="space-y-1">
             <p className="px-2 text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4">
@@ -66,12 +80,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         <div className="border-t p-4">
           <div className="flex items-center gap-3 px-2 py-2">
-            <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-medium">
-              AK
+            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold shrink-0">
+              {initials || "?"}
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium text-slate-900 leading-none">Andi Konsultan</span>
-              <span className="text-xs text-slate-500 mt-1">andi@gaiasiap.id</span>
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-medium text-slate-900 leading-none truncate">{displayName}</span>
+              {displayEmail && (
+                <span className="text-xs text-slate-500 mt-1 truncate">{displayEmail}</span>
+              )}
             </div>
           </div>
         </div>
@@ -99,10 +115,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <Bell size={20} />
               <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
             </button>
-            <Button variant="ghost" size="icon" asChild>
-              <Link href="/">
-                <LogOut size={20} className="text-slate-500" />
-              </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => signOut({ redirectUrl: basePath || "/" })}
+              title="Keluar"
+            >
+              <LogOut size={20} className="text-slate-500" />
             </Button>
           </div>
         </header>

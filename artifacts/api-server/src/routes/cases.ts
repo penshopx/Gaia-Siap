@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, count } from "drizzle-orm";
-import { db, casesTable, workflowStepsTable, intakesTable } from "@workspace/db";
+import { and, eq, desc, count } from "drizzle-orm";
+import { db, casesTable, workflowStepsTable } from "@workspace/db";
 import {
   CreateCaseBody,
   UpdateCaseBody,
@@ -33,18 +33,20 @@ router.get("/cases", async (req, res): Promise<void> => {
   }
 
   const { status, limit = 20, offset = 0 } = query.data;
+  const userId = req.userId!;
 
-  let baseQuery = db.select().from(casesTable);
-  if (status) {
-    baseQuery = baseQuery.where(eq(casesTable.status, status)) as typeof baseQuery;
-  }
+  const userFilter = eq(casesTable.userId, userId);
+  const whereClause = status
+    ? and(userFilter, eq(casesTable.status, status))
+    : userFilter;
 
   const [items, [{ total }]] = await Promise.all([
-    baseQuery
+    db.select().from(casesTable)
+      .where(whereClause)
       .orderBy(desc(casesTable.updatedAt))
       .limit(limit)
       .offset(offset),
-    db.select({ total: count() }).from(casesTable),
+    db.select({ total: count() }).from(casesTable).where(whereClause),
   ]);
 
   res.json(ListCasesResponse.parse({ items, total }));
@@ -59,9 +61,11 @@ router.post("/cases", async (req, res): Promise<void> => {
   }
 
   const id = randomUUID();
+  const userId = req.userId!;
+
   const [newCase] = await db
     .insert(casesTable)
-    .values({ id, ...parsed.data })
+    .values({ id, userId, ...parsed.data })
     .returning();
 
   // Create default workflow steps
@@ -84,10 +88,12 @@ router.get("/cases/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const userId = req.userId!;
+
   const [caseItem] = await db
     .select()
     .from(casesTable)
-    .where(eq(casesTable.id, params.data.id));
+    .where(and(eq(casesTable.id, params.data.id), eq(casesTable.userId, userId)));
 
   if (!caseItem) {
     res.status(404).json({ error: "Kasus tidak ditemukan" });
@@ -110,10 +116,12 @@ router.patch("/cases/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const userId = req.userId!;
+
   const [updated] = await db
     .update(casesTable)
     .set({ ...parsed.data, updatedAt: new Date() })
-    .where(eq(casesTable.id, params.data.id))
+    .where(and(eq(casesTable.id, params.data.id), eq(casesTable.userId, userId)))
     .returning();
 
   if (!updated) {
@@ -131,9 +139,11 @@ router.delete("/cases/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const userId = req.userId!;
+
   const [deleted] = await db
     .delete(casesTable)
-    .where(eq(casesTable.id, params.data.id))
+    .where(and(eq(casesTable.id, params.data.id), eq(casesTable.userId, userId)))
     .returning();
 
   if (!deleted) {
