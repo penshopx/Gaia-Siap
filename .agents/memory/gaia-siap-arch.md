@@ -21,6 +21,6 @@ Gaia SIAP is a standalone B2B SaaS app (NOT part of Gaia Store or DP Store).
 
 **Workflow engine:** 4 default steps auto-created on case creation. Status transitions: draft→intake (on first intake submit) →processing (on workflow advance past step 1) →review (on last step) →completed (all steps done). DB enums: case_status, step_status, case_priority.
 
-**Auth:** Public landing at "/" works without auth. Auth not yet implemented — planned for Phase 1 (Clerk or Replit Auth).
+**Auth (Phase 1C — complete):** Clerk provisioned (app_3Hkby6FLOu2aDNoHvsVkfESPavi). Backend: `@clerk/express` clerkMiddleware + requireAuth in `routes/index.ts`. Frontend: ClerkProvider in App.tsx with `/sign-in/*?` and `/sign-up/*?` routes. `/healthz` is the only public API endpoint. All other routes return 401 `{ error: "Unauthorized" }` for unauthenticated requests. Cookie-based — never use Bearer token or setAuthTokenGetter on the web client.
 
 **DB enums registered:** case_status, step_status, case_priority — don't rename without migration.

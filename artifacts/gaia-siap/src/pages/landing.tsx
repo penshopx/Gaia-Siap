@@ -14,7 +14,9 @@ export default function Landing() {
           <span className="text-xl font-bold tracking-tight text-slate-900">Gaia SIAP</span>
         </div>
         <div className="flex items-center gap-4">
-          <Button variant="ghost" className="hidden sm:inline-flex text-slate-600 font-medium">Masuk</Button>
+          <Button variant="ghost" asChild className="hidden sm:inline-flex text-slate-600 font-medium">
+            <Link href="/sign-in">Masuk</Link>
+          </Button>
           <Button asChild className="rounded-full shadow-sm px-6">
             <Link href="/mulai">Mulai Sekarang</Link>
           </Button>
