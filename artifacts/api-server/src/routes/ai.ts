@@ -185,3 +185,7 @@ router.post("/ai/assist", async (req, res): Promise<void> => {
 });
 
 export default router;
+
+// Exported for unit testing only — allows tests to call callAiService()
+// directly without going through the HTTP route or a real database.
+export { callAiService };
