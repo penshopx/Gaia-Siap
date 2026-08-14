@@ -6,11 +6,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { FileText, ArrowRight, BarChart3, Clock, CheckCircle2, PlayCircle, FileEdit } from "lucide-react";
+import { useUser } from "@clerk/react";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
+  const { user } = useUser();
   const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary();
   const { data: recentCases, isLoading: isLoadingCases } = useListCases({ limit: 5 });
+
+  const firstName = user?.firstName ?? user?.fullName?.split(" ")[0] ?? null;
+  const greeting = firstName ? `Halo, ${firstName}` : "Dasbor Saya";
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -35,7 +40,7 @@ export default function Dashboard() {
   return (
     <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Dasbor Organisasi</h1>
+        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{greeting}</h1>
         <p className="text-slate-500 mt-1">Ringkasan aktivitas dan kasus yang sedang berjalan.</p>
       </div>
 

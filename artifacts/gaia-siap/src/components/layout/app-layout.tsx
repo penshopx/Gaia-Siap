@@ -106,7 +106,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </button>
             <div className="hidden md:block">
               <h1 className="text-sm font-medium text-slate-600">
-                Ruang Kerja Organisasi
+                {displayName ? `Ruang Kerja — ${displayName}` : "Ruang Kerja Saya"}
               </h1>
             </div>
           </div>
