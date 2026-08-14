@@ -1,15 +1,22 @@
 /**
- * Unit tests: callAiService() retry / timeout behaviour
+ * Unit tests: callAiService() retry / timeout behaviour + circuit breaker
  *
  * Tests the exported callAiService() directly (no HTTP stack) so fake timers
  * interact cleanly with the AbortController inside gustaftaAttempt().
  *
- * The tests would FAIL if:
+ * The retry tests would FAIL if:
  *  - The retry loop were removed (5xx / network errors would not be retried)
  *  - 4xx errors (other than 429) started being retried
  *  - AbortController / AbortSignal were removed from gustaftaAttempt()
  *  - The timeout timer no longer called controller.abort()
  *  - A successful second attempt raised instead of resolving
+ *
+ * The circuit-breaker tests would FAIL if:
+ *  - CLOSED does not open after CB_FAILURE_THRESHOLD consecutive failures
+ *  - An OPEN circuit does not fail fast (fetch is still called)
+ *  - HALF_OPEN allows more than one concurrent probe to reach Gustafta
+ *  - A successful probe does not transition the circuit back to CLOSED
+ *  - A failed probe does not transition the circuit back to OPEN
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -83,10 +90,17 @@ const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(
 vi.stubGlobal("fetch", fetchMock);
 
 // ---------------------------------------------------------------------------
-// Import callAiService after all mocks are in place
+// Import callAiService and circuit helpers after all mocks are in place
 // ---------------------------------------------------------------------------
 
-const { callAiService } = await import("./ai.js");
+const {
+  callAiService,
+  circuit,
+  resetCircuit,
+  recordSuccess,
+  recordFailure,
+  CB_FAILURE_THRESHOLD,
+} = await import("./ai.js");
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -111,6 +125,7 @@ const BASE_PARAMS = { caseId: "c1", prompt: "Summarise this case" };
 
 beforeEach(() => {
   fetchMock.mockReset();
+  resetCircuit(); // start every test with a fresh CLOSED circuit
 });
 
 afterEach(() => {
@@ -119,7 +134,7 @@ afterEach(() => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests
+// Tests — retry / timeout behaviour
 // ---------------------------------------------------------------------------
 
 describe("callAiService — retry / timeout behaviour", () => {
@@ -174,14 +189,12 @@ describe("callAiService — retry / timeout behaviour", () => {
       // Start the call — it will not resolve until timers are advanced.
       // Attach the rejection handler BEFORE advancing timers so the promise
       // rejection is not left unhandled between runAllTimersAsync() returning
-      // and the assertion being set up (which triggers the Node.js
-      // PromiseRejectionHandledWarning and makes vitest report an error).
+      // and the assertion being set up.
       const promise = callAiService(BASE_PARAMS);
       const assertion = expect(promise).rejects.toThrow();
 
       // Drain all pending timers + microtasks (3 × GUSTAFTA_TIMEOUT_MS aborts
-      // and 2 × RETRY_BACKOFF_MS sleeps).  runAllTimersAsync flushes timers
-      // recursively until none remain, interleaving microtask checkpoints.
+      // and 2 × RETRY_BACKOFF_MS sleeps).
       await vi.runAllTimersAsync();
 
       await assertion;
@@ -200,8 +213,6 @@ describe("callAiService — retry / timeout behaviour", () => {
   // ── Generic (non-abort) network error ─────────────────────────────────────
 
   it("retries a generic network error (non-AbortError) — 3 total fetch calls", async () => {
-    // A plain network failure that is not an AbortError; gustaftaAttempt()
-    // still tags it retryable so the loop retries it.
     const networkErr = new Error("ECONNREFUSED");
     fetchMock.mockRejectedValue(networkErr);
 
@@ -235,4 +246,227 @@ describe("callAiService — retry / timeout behaviour", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
   }, 10_000);
+});
+
+// ---------------------------------------------------------------------------
+// Tests — circuit breaker
+// ---------------------------------------------------------------------------
+
+describe("callAiService — circuit breaker", () => {
+  // ── CLOSED → OPEN ─────────────────────────────────────────────────────────
+
+  it("opens the circuit after CB_FAILURE_THRESHOLD consecutive failures", async () => {
+    // Each call below makes 3 fetch attempts (original + 2 retries).
+    // We run enough calls to hit the threshold. Since threshold defaults to 5
+    // and each failed callAiService increments consecutiveFailures once
+    // (after exhausting retries), we need 5 failing calls.
+    fetchMock.mockResolvedValue(fakeResponse(500));
+
+    expect(circuit.state).toBe("CLOSED");
+
+    for (let i = 0; i < CB_FAILURE_THRESHOLD; i++) {
+      await expect(callAiService(BASE_PARAMS)).rejects.toThrow();
+      fetchMock.mockReset();
+      fetchMock.mockResolvedValue(fakeResponse(500));
+    }
+
+    expect(circuit.state).toBe("OPEN");
+  }, 60_000);
+
+  // ── OPEN fast-fail ────────────────────────────────────────────────────────
+
+  it("rejects immediately without calling fetch when the circuit is OPEN", async () => {
+    // Force the circuit open directly
+    circuit.state = "OPEN";
+    circuit.openedAt = Date.now(); // opened just now, cooldown not elapsed
+
+    const err = await callAiService(BASE_PARAMS).catch((e: unknown) => e);
+
+    expect((err as { circuitOpen?: boolean }).circuitOpen).toBe(true);
+    expect((err as Error).message).toMatch(/temporarily unavailable/i);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  // ── OPEN → HALF_OPEN after reset timeout ──────────────────────────────────
+
+  it("transitions OPEN → HALF_OPEN → CLOSED when the probe succeeds", async () => {
+    // Simulate a circuit that has been open long enough for the cooldown to expire
+    circuit.state = "OPEN";
+    circuit.openedAt = 0; // epoch — clearly past any reset timeout
+
+    fetchMock.mockResolvedValueOnce(
+      fakeResponse(200, { response: "Recovered", suggestions: [] }),
+    );
+
+    const result = await callAiService(BASE_PARAMS);
+
+    expect(result.response).toBe("Recovered");
+    expect(circuit.state).toBe("CLOSED");
+    expect(circuit.consecutiveFailures).toBe(0);
+    expect(circuit.probeInFlight).toBe(false);
+    // Probe is a single attempt — no retries
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  // ── HALF_OPEN probe failure → OPEN ────────────────────────────────────────
+
+  it("transitions HALF_OPEN → OPEN when the probe fails", async () => {
+    circuit.state = "OPEN";
+    circuit.openedAt = 0; // cooldown elapsed
+
+    fetchMock.mockResolvedValueOnce(fakeResponse(503));
+
+    await expect(callAiService(BASE_PARAMS)).rejects.toThrow();
+
+    expect(circuit.state).toBe("OPEN");
+    expect(circuit.probeInFlight).toBe(false);
+    // Probe is a single attempt — no retries
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  // ── HALF_OPEN: only one concurrent probe ─────────────────────────────────
+
+  it("HALF_OPEN: blocks concurrent callers while a probe is in flight", async () => {
+    // Put the circuit in HALF_OPEN state (cooldown elapsed) with no probe yet
+    circuit.state = "OPEN";
+    circuit.openedAt = 0;
+
+    // Keep the probe pending so we can observe the concurrent rejection
+    let resolveProbe!: (r: Response) => void;
+    fetchMock.mockImplementationOnce(
+      () => new Promise<Response>((res) => { resolveProbe = res; }),
+    );
+
+    // Starting the probe call sets probeInFlight=true synchronously (before
+    // the first await inside callAiService), so the second call below
+    // immediately sees the flag and must reject without touching fetch.
+    const probeCall = callAiService(BASE_PARAMS);
+
+    // Second concurrent call — must fail fast with circuitOpen flag
+    const concurrent = callAiService(BASE_PARAMS).catch((e: unknown) => e);
+    const concurrentErr = await concurrent;
+
+    expect((concurrentErr as { circuitOpen?: boolean }).circuitOpen).toBe(true);
+    expect((concurrentErr as Error).message).toMatch(/temporarily unavailable/i);
+    // Only the probe should have reached fetch
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Resolve the probe successfully
+    resolveProbe(fakeResponse(200, { response: "ok", suggestions: [] }));
+    await probeCall;
+
+    expect(circuit.state).toBe("CLOSED");
+    expect(circuit.probeInFlight).toBe(false);
+  });
+
+  // ── Success resets failure counter ────────────────────────────────────────
+
+  it("resets consecutiveFailures to 0 after a successful call while CLOSED", async () => {
+    // Simulate a few prior failures (below threshold)
+    circuit.consecutiveFailures = 3;
+
+    fetchMock.mockResolvedValueOnce(
+      fakeResponse(200, { response: "All good", suggestions: [] }),
+    );
+
+    await callAiService(BASE_PARAMS);
+
+    expect(circuit.consecutiveFailures).toBe(0);
+    expect(circuit.state).toBe("CLOSED");
+  });
+
+  // ── Probe: non-retryable 4xx must reopen the circuit ─────────────────────
+
+  it("HALF_OPEN: a probe that receives a 4xx reopens the circuit", async () => {
+    circuit.state = "OPEN";
+    circuit.openedAt = 0; // cooldown elapsed
+
+    // 403 is non-retryable — previously was not recorded, leaving HALF_OPEN stuck
+    fetchMock.mockResolvedValueOnce(fakeResponse(403, { error: "Forbidden" }));
+
+    await expect(callAiService(BASE_PARAMS)).rejects.toThrow(/403/);
+
+    expect(circuit.state).toBe("OPEN");
+    expect(circuit.probeInFlight).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  // ── Probe: JSON parse failure must reopen the circuit ─────────────────────
+
+  it("HALF_OPEN: a probe that returns invalid JSON reopens the circuit", async () => {
+    circuit.state = "OPEN";
+    circuit.openedAt = 0;
+
+    // Respond with HTTP 200 but a body that fails JSON.parse
+    const badJsonResponse = {
+      ok: true,
+      status: 200,
+      json: async () => { throw new SyntaxError("Unexpected token"); },
+      text: async () => "not-json",
+    } as unknown as Response;
+    fetchMock.mockResolvedValueOnce(badJsonResponse);
+
+    await expect(callAiService(BASE_PARAMS)).rejects.toThrow();
+
+    expect(circuit.state).toBe("OPEN");
+    expect(circuit.probeInFlight).toBe(false);
+  });
+
+  // ── Stale normal failure must not re-open a HALF_OPEN circuit ─────────────
+
+  it("a non-probe failure while HALF_OPEN does not change circuit state", () => {
+    circuit.state = "HALF_OPEN";
+    circuit.probeInFlight = true; // probe is running
+
+    // A stale normal request finishes with a failure — must be ignored
+    recordFailure(false);
+
+    expect(circuit.state).toBe("HALF_OPEN");
+  });
+
+  // ── Late success must not close an OPEN circuit ───────────────────────────
+
+  it("a non-probe success does not close an OPEN circuit (late in-flight request)", () => {
+    // Simulate a circuit that just opened
+    circuit.state = "OPEN";
+    circuit.openedAt = Date.now();
+    circuit.consecutiveFailures = CB_FAILURE_THRESHOLD;
+
+    // A slow call that was already in flight succeeds — it is not the probe
+    recordSuccess(false);
+
+    // Circuit must remain OPEN; the probe alone may close it
+    expect(circuit.state).toBe("OPEN");
+    expect(circuit.consecutiveFailures).toBe(CB_FAILURE_THRESHOLD);
+  });
+
+  // ── Late success must not close a HALF_OPEN circuit ──────────────────────
+
+  it("a non-probe success does not close a HALF_OPEN circuit (late success during probe)", async () => {
+    // Put circuit in OPEN state with expired cooldown so the first call
+    // becomes the probe and sets probeInFlight=true
+    circuit.state = "OPEN";
+    circuit.openedAt = 0;
+
+    // Keep the probe pending
+    let resolveProbe!: (r: Response) => void;
+    fetchMock.mockImplementationOnce(
+      () => new Promise<Response>((res) => { resolveProbe = res; }),
+    );
+
+    // Start the probe — probeInFlight is set synchronously
+    const probeCall = callAiService(BASE_PARAMS);
+
+    // A stale normal request's success arrives while the probe is in flight.
+    // It must not close the circuit.
+    recordSuccess(false);
+    expect(circuit.state).toBe("HALF_OPEN"); // unchanged
+
+    // Now let the real probe succeed and close the circuit properly
+    resolveProbe(fakeResponse(200, { response: "ok", suggestions: [] }));
+    await probeCall;
+
+    expect(circuit.state).toBe("CLOSED");
+    expect(circuit.probeInFlight).toBe(false);
+  });
 });
