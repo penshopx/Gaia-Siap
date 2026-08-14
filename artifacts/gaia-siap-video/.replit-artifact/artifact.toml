@@ -1,0 +1,28 @@
+kind = "video"
+previewPath = "/gaia-siap-video/"
+title = "Gaia SIAP — Demo Video"
+description = "Animated 2-minute product demo video for Gaia SIAP, targeting B2B decision-makers. Shows the full flow from problem intake → AI-powered workflow → structured results, in Bahasa Indonesia."
+version = "1.0.0"
+id = "artifacts/gaia-siap-video"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/gaia-siap-video/" ]
+localPort = 18880
+
+[services.development]
+run = "pnpm --filter @workspace/gaia-siap-video run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/gaia-siap-video", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/gaia-siap-video/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18880"
+BASE_PATH = "/gaia-siap-video/"

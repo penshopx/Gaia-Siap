@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "x1ShyLyY7JzSzy_roamDQ"
+uri = "file://artifacts/gaia-siap-video/public/audio/bg_music.mp3"
+type = "audio"
+title = "background music"
+description = "Generated music: Corporate motivational instrumental background music scoring a B2B SaaS product demo. Driving piano, warm strings, subtle synth pads, 105 BPM, professional and inspiring mood. Patien…"
