@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef } from 'react';
-import { ClerkProvider, SignIn, SignUp, Show, useClerk } from '@clerk/react';
+import { ClerkProvider, SignIn, SignUp, Show, useClerk, useAuth } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
@@ -135,8 +135,23 @@ function HomeRoute() {
   );
 }
 
-// Requires auth — guests are sent to sign-in
+// Loading spinner shown while Clerk resolves the session
+function AuthLoadingSpinner() {
+  return (
+    <div className="flex min-h-[100dvh] items-center justify-center bg-slate-50">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-primary" />
+    </div>
+  );
+}
+
+// Requires auth — shows spinner until Clerk resolves, then guards guests to sign-in
 function ProtectedLayout({ children }: { children: ReactNode }) {
+  const { isLoaded } = useAuth();
+
+  if (!isLoaded) {
+    return <AuthLoadingSpinner />;
+  }
+
   return (
     <>
       <Show when="signed-in">
