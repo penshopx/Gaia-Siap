@@ -1,2 +1,3 @@
 - [Gaia SIAP Architecture](gaia-siap-arch.md) — standalone B2B SaaS app, AI mock in callAiService(), Phase 1 = auth + real Gustafta integration
 - [OpenAPI Zod Codegen Quirks](openapi-codegen-quirks.md) — zod.int() does not exist in zod v3; use type:number not type:integer in specs
+- [Gustafta Service Areas](gustafta-services.md) — klinik-konsultasi + ruang proyek are generic/flexible, no domain restriction needed in Gaia SIAP
