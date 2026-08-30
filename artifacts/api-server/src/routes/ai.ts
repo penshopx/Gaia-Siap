@@ -369,13 +369,14 @@ router.post("/ai/assist", async (req, res): Promise<void> => {
     );
   } catch (err: unknown) {
     const isCircuitOpen = (err as { circuitOpen?: boolean }).circuitOpen === true;
-    if (isCircuitOpen) {
-      res.status(503).json({
-        error: "AI service temporarily unavailable. Please try again shortly.",
-      });
-      return;
-    }
-    throw err;
+    req.log.warn(
+      { err, isCircuitOpen },
+      "AI service unavailable — returning AI_UNAVAILABLE to client",
+    );
+    res.status(503).json({
+      code: "AI_UNAVAILABLE",
+      error: "AI service temporarily unavailable. Please try again shortly.",
+    });
   }
 });
 

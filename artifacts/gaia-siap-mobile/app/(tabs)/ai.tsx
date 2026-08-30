@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useListCases, useAiAssist } from '@workspace/api-client-react';
+import { useListCases, useAiAssist, ApiError } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
@@ -168,11 +168,21 @@ export default function AiAssistScreen() {
         suggestions: res.suggestions ?? [],
       };
       setMessages((prev) => [aiMsg, ...prev]);
-    } catch {
+    } catch (err) {
+      // Restore the user's prompt so they can retry without retyping
+      setInput(prompt);
+
+      const isAiUnavailable =
+        err instanceof ApiError &&
+        (err.status === 503 ||
+          (err.data as { code?: string } | null)?.code === 'AI_UNAVAILABLE');
+
       const errMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Something went wrong. Please try again.',
+        content: isAiUnavailable
+          ? 'Asisten AI sedang tidak tersedia. Silakan coba beberapa saat lagi.'
+          : 'Terjadi kesalahan. Silakan coba lagi.',
       };
       setMessages((prev) => [errMsg, ...prev]);
     }
